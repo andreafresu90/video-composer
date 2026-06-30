@@ -20,6 +20,8 @@
   },
   "dependencies": {
     "dotenv": "^16.4.5",
+    "music-tempo": "^1.0.3",
+    "onnxruntime-node": "^1.27.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {

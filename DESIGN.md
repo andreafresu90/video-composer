@@ -392,4 +392,22 @@ video-composer/
     moltiplicatore exposure (sottoesposto <2.5 → 0.6, <4 → 0.85, sovraesposto
     > 8.5 → 0.7, >7.5 → 0.9). Pre-filtro gratuito che migliora la qualità
     > dell'input all'AI.
+- ✅ **Fase 3c — Face detection deterministica (ONNX Runtime)**:
+  - **MediaPipe Tasks Vision** resultò inutilizzabile in Node puro (richiede DOM
+    browser completo: `document`, `canvas`, `addEventListener` su elementi).
+    Sostituito con **ONNX Runtime Node** + modello **UltraFace RFB-320** (1.2MB,
+    Apache-2.0, stesso family di BlazeFace). Funziona nativamente in Node, nessun
+    polyfill DOM.
+  - `src/vision/faceDetector.ts`: preprocessing RGB→CHW con mean subtraction,
+    inferenza ONNX, estrazione candidate con confidence ≥ 0.6, NMS con IoU 0.3,
+    calcolo `facePosition` (center/left/right/out-of-frame) + `framingQuality`
+    (1-10) dal bounding box più grande. Coordinate clampate ai bordi [0,1];
+    `overflow` tracciato per distinguere volti parzialmente fuori campo.
+  - **Prompt AI semplificato**: rimossi `personVisible`/`facePosition`/
+    `framingQuality` dal prompt vision (ora forniti da ONNX, deterministico e
+    gratuito). Meno token output → meno costo.
+  - Integrazione nel pipeline: per ogni keyframe, `detectFaces` arricchisce il
+    `FrameScore` con detection deterministica (0€, privacy totale — i frame non
+    lasciano il PC). L'AI rimane per aesthetic/emotionalWarmth/mood.
+  - `FACE_DETECT_ENABLED` in `.env` per disabilitare (default: true).
 - ⏳ Fase 4 (opzionale): UX CLI avanzata, report selezione, preview plan, NVENC.

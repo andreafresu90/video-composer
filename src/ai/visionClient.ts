@@ -1,9 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { z } from 'zod';
-import type { FacePosition, FrameScore, Keyframe, Mood } from '../types.js';
+import type { FrameScore, Keyframe, Mood } from '../types.js';
 
 const MOODS: Mood[] = ['joyful', 'calm', 'energetic', 'intimate', 'epic', 'melancholic', 'neutral'];
-const FACE_POSITIONS: FacePosition[] = ['center', 'left', 'right', 'out-of-frame', 'none'];
 
 const frameScoreSchema = z.object({
   timeSec: z.number(),
@@ -12,9 +11,6 @@ const frameScoreSchema = z.object({
   motionLevel: z.number().min(1).max(10),
   focusSubject: z.string().max(80),
   mood: z.enum(MOODS as [Mood, ...Mood[]]),
-  personVisible: z.boolean().optional(),
-  facePosition: z.enum(FACE_POSITIONS as [FacePosition, ...FacePosition[]]).optional(),
-  framingQuality: z.number().min(1).max(10).optional(),
   notes: z.string().max(200).optional(),
 });
 
@@ -25,12 +21,9 @@ const SYSTEM_PROMPT = [
   '{"frames":[{"timeSec":number,"aesthetic":1-10,"emotionalWarmth":1-10,',
   '"motionLevel":1-10,"focusSubject":"<=5 parole","mood":<uno tra: ' +
     MOODS.join(', ') +
-    '>,"personVisible":boolean,"facePosition":<"center"|"left"|"right"|"out-of-frame"|"none",',
-  '"framingQuality":1-10 (qualita della composizione: volto ben incorniciato=alto, volto tagliato o fuori fuoco=basso),',
-  '"notes":"opzionale <=15 parole"}]}.',
-  "personVisible=true se c'e una o piu persone chiarame visibili. facePosition indica dove si trova il volto principale",
-  '(out-of-frame se parzialmente tagliato ai bordi, none se nessuna persona).',
-  'Nessun testo aggiuntivo, nessun commento, solo il JSON.',
+    '>,"notes":"opzionale <=15 parole"}]}.',
+  'aesthetic=composizione/luce/qualita tecnica, emotionalWarmth=espressioni/calore/emozione,',
+  'motionLevel=movimento/soggetto in azione. Nessun testo aggiuntivo, solo il JSON.',
 ].join(' ');
 
 interface ResponsesContent {
@@ -196,9 +189,6 @@ export class VisionClient {
         motionLevel: v.motionLevel,
         focusSubject: v.focusSubject,
         mood: v.mood,
-        personVisible: v.personVisible,
-        facePosition: v.facePosition,
-        framingQuality: v.framingQuality,
         notes: v.notes,
       });
     }

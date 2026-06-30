@@ -6,6 +6,8 @@ input/*
 !input/.gitkeep
 assets/music/*
 !assets/music/.gitkeep
+assets/models/*.onnx
+assets/models/*.tflite
 .env
 .env.local
 *.log

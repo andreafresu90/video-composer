@@ -139,14 +139,16 @@ Definite nel `.env` (vedi `.env.example` per il template):
 
 ### API AI
 
-| Variabile                    | Default                         | Descrizione                             |
-| ---------------------------- | ------------------------------- | --------------------------------------- |
-| `OPENCODE_API_KEY`           | (obbligatoria per `--ai`)       | Chiave API OpenCode Go/Zen              |
-| `OPENCODE_VISION_BASE_URL`   | `https://opencode.ai/zen/v1`    | Endpoint API vision (Zen Responses)     |
-| `VISION_MODEL`               | `gpt-5.4-nano`                  | Modello vision per lo scoring dei frame |
-| `VISION_MAX_FRAMES_PER_CLIP` | `6`                             | Max keyframe inviati all'AI per clip    |
-| `OPENCODE_TEXT_BASE_URL`     | `https://opencode.ai/zen/go/v1` | Endpoint API text (Go, futuro uso)      |
-| `TEXT_MODEL`                 | `glm-5.2`                       | Modello text (futuro, per narrativa)    |
+| Variabile                    | Default                                | Descrizione                                      |
+| ---------------------------- | -------------------------------------- | ------------------------------------------------ |
+| `OPENCODE_API_KEY`           | (obbligatoria per `--ai`)              | Chiave API OpenCode Go/Zen                       |
+| `OPENCODE_VISION_BASE_URL`   | `https://opencode.ai/zen/v1`           | Endpoint API vision (Zen Responses)              |
+| `VISION_MODEL`               | `gpt-5.4-nano`                         | Modello vision per lo scoring dei frame          |
+| `VISION_MAX_FRAMES_PER_CLIP` | `6`                                    | Max keyframe inviati all'AI per clip             |
+| `OPENCODE_TEXT_BASE_URL`     | `https://opencode.ai/zen/go/v1`        | Endpoint API text (Go, futuro uso)               |
+| `TEXT_MODEL`                 | `glm-5.2`                              | Modello text (futuro, per narrativa)             |
+| `FACE_DETECT_MODEL_PATH`     | `./assets/models/version-RFB-320.onnx` | Modello ONNX per face detection                  |
+| `FACE_DETECT_ENABLED`        | `true`                                 | Abilita/disabilita face detection deterministica |
 
 ### FFmpeg
 
@@ -246,9 +248,22 @@ brano disponibile.
 | -------------------------------------------- | --------------------------------------------------------- |
 | FFmpeg (probe, tagli, concat, color, export) | 0€ (locale)                                               |
 | Beat detection                               | 0€ (algoritmo JS puro su PCM)                             |
+| Face detection (ONNX Runtime, UltraFace)     | 0€ (locale, privacy totale)                               |
 | AI vision (`--ai`)                           | ~$0.0007/reel (10 chiamate × $0.00007 con `gpt-5.4-nano`) |
 
 Con 10$ di credito OpenCode Zen puoi produrre **~14.000 reel** con AI.
+
+### Modello face detection
+
+Il modello `version-RFB-320.onnx` (UltraFace, ~1.2MB) va scaricato e posizionato in
+`assets/models/`. Non è incluso nel repo (gitignored). Scaricarlo da:
+
+```bash
+curl -L -o assets/models/version-RFB-320.onnx \
+  https://github.com/Linzaer/Ultra-Light-Fast-Generic-Face-Detector-1MB/raw/master/models/onnx/version-RFB-320.onnx
+```
+
+Licenza: MIT. Processing 100% locale — i frame con persone non lasciano il tuo PC.
 
 ---
 

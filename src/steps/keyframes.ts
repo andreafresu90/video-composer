@@ -1,5 +1,6 @@
 import { join } from 'node:path';
-import { readFileSync } from 'node:fs';
+import { readFileSync, unlinkSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import type { ClipProbe, Keyframe, SceneBoundary } from '../types.js';
 import type { FfmpegRunner } from '../ffmpeg/runner.js';
 
@@ -63,29 +64,31 @@ export async function measureFrameTechnical(
   runner: FfmpegRunner,
   keyframePath: string,
 ): Promise<FrameTechnicalMetrics> {
-  const args = [
-    '-hide_banner',
-    '-y',
-    '-i',
-    keyframePath,
-    '-vf',
-    'scale=128:-2,format=gray',
-    '-f',
-    'rawvideo',
-    '-c:a',
-    'pcm_s16le',
-    'pipe:1',
-  ];
+  const tmpPath = join(tmpdir(), `vc_tech_${Date.now()}_${Math.random().toString(36).slice(2)}.raw`);
   try {
-    const result = await runner.ffmpeg(args);
-    const buf = Buffer.from(result.stdout, 'binary');
-    if (buf.length === 0) {
-      return measureFromJpegFile(keyframePath);
-    }
-    const pixels = new Uint8Array(buf);
-    return computeMetrics(pixels);
+    await runner.ffmpeg([
+      '-hide_banner',
+      '-y',
+      '-i',
+      keyframePath,
+      '-vf',
+      'scale=128:-2,format=gray',
+      '-f',
+      'rawvideo',
+      '-c:a',
+      'pcm_s16le',
+      tmpPath,
+    ]);
+    const pixels = readFileSync(tmpPath);
+    return computeMetrics(new Uint8Array(pixels));
   } catch {
     return measureFromJpegFile(keyframePath);
+  } finally {
+    try {
+      unlinkSync(tmpPath);
+    } catch {
+      /* ignore */
+    }
   }
 }
 
@@ -117,7 +120,7 @@ function computeMetrics(pixels: Uint8Array): FrameTechnicalMetrics {
     }
   }
   const variance = count > 0 ? lapVar / count : 0;
-  const sharpness = Math.min(10, Math.round((variance / 50) * 10) / 10 + 1);
+  const sharpness = Math.max(1, Math.min(10, Math.round(Math.log10(variance + 1) * 3 * 10) / 10));
   const exposure = Math.min(10, Math.max(1, Math.round((mean / 25.5) * 10) / 10));
   return { sharpness, exposure };
 }

@@ -16,6 +16,7 @@ import type {
 } from './types.js';
 import { createFfmpegRunner } from './ffmpeg/runner.js';
 import { VisionClient } from './ai/visionClient.js';
+import { detectFaces } from './vision/faceDetector.js';
 import { probeClip } from './steps/probe.js';
 import { detectScenes } from './steps/sceneDetect.js';
 import { extractKeyframes, measureFrameTechnical } from './steps/keyframes.js';
@@ -129,6 +130,20 @@ export async function runPipeline(config: AppConfig, log: Logger, input: Pipelin
           const m = await measureFrameTechnical(runner, frames[k].filePath);
           frameScores[k].sharpness = m.sharpness;
           frameScores[k].exposure = m.exposure;
+          if (config.FACE_DETECT_ENABLED) {
+            try {
+              const fd = await detectFaces(
+                runner,
+                frames[k].filePath,
+                resolve(config.FACE_DETECT_MODEL_PATH),
+              );
+              frameScores[k].personVisible = fd.personVisible;
+              frameScores[k].facePosition = fd.facePosition;
+              frameScores[k].framingQuality = fd.framingQuality;
+            } catch (fdErr) {
+              log.debug('faceDetect failed', { clipId: probe.clipId, error: (fdErr as Error).message });
+            }
+          }
         }
         const score = selectBestSegment(probe, frameScores, opts);
         scores.push(score);
@@ -138,8 +153,9 @@ export async function runPipeline(config: AppConfig, log: Logger, input: Pipelin
           overall: Number(score.overallScore.toFixed(2)),
           mood: score.mood,
           frames: frameScores.length,
-          framing: frameScores[0]?.framingQuality,
           face: frameScores[0]?.facePosition,
+          framing: frameScores[0]?.framingQuality,
+          faces: frameScores.reduce((a, f) => a + (f.personVisible ? 1 : 0), 0),
           sharp: frameScores[0]?.sharpness,
           expo: frameScores[0]?.exposure,
         });

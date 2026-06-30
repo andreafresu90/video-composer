@@ -8,6 +8,8 @@ const schema = z.object({
   VISION_MAX_FRAMES_PER_CLIP: z.coerce.number().int().min(1).default(6),
   OPENCODE_TEXT_BASE_URL: z.string().url().default('https://opencode.ai/zen/go/v1'),
   TEXT_MODEL: z.string().default('glm-5.2'),
+  FACE_DETECT_MODEL_PATH: z.string().default('./assets/models/version-RFB-320.onnx'),
+  FACE_DETECT_ENABLED: z.coerce.boolean().default(true),
   FFMPEG_PATH: z.string().optional(),
   FFPROBE_PATH: z.string().optional(),
   INPUT_DIR: z.string().default('./input'),

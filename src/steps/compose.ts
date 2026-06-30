@@ -22,13 +22,16 @@ function buildXfadeChain(
   }
   const cd = Math.min(crossfade, ...rendered.map((s) => s.durationSec / 2));
   const parts: string[] = [];
+  for (let i = 0; i < rendered.length; i++) {
+    parts.push(`[${i}:v]setpts=PTS-STARTPTS,fps=30[vtb${i}]`);
+  }
   let acc = rendered[0].durationSec;
-  let prevLabel = '0:v';
+  let prevLabel = 'vtb0';
   for (let i = 1; i < rendered.length; i++) {
     const offset = Math.max(0, acc - cd);
-    const outLabel = i === rendered.length - 1 ? 'vout' : `v${i}`;
+    const outLabel = i === rendered.length - 1 ? 'vout' : `x${i}`;
     parts.push(
-      `[${prevLabel}][${i}:v]xfade=transition=fade:duration=${cd.toFixed(3)}:offset=${offset.toFixed(3)}[${outLabel}]`,
+      `[${prevLabel}][vtb${i}]xfade=transition=fade:duration=${cd.toFixed(3)}:offset=${offset.toFixed(3)},fps=30[${outLabel}]`,
     );
     acc = acc + rendered[i].durationSec - cd;
     prevLabel = outLabel;
@@ -36,33 +39,14 @@ function buildXfadeChain(
   return { filter: parts.join(';'), totalDurationSec: acc, valid: true };
 }
 
-function buildConcatWithFades(rendered: RenderedSegment[], crossfade: number): string {
-  if (rendered.length === 0) return '';
-  const cd = Math.min(crossfade, 0.3);
-  const parts: string[] = [];
-  for (let i = 0; i < rendered.length; i++) {
-    const d = rendered[i].durationSec;
-    const fadeIn = i === 0 ? 0 : cd;
-    const fadeOut = i === rendered.length - 1 ? 0 : cd;
-    const fadeOutStart = Math.max(0, d - fadeOut);
-    const filters = ['setpts=PTS-STARTPTS'];
-    if (fadeIn > 0) filters.push(`fade=t=in:st=0:d=${fadeIn.toFixed(3)}`);
-    if (fadeOut > 0) filters.push(`fade=t=out:st=${fadeOutStart.toFixed(3)}:d=${fadeOut.toFixed(3)}`);
-    parts.push(`[${i}:v]${filters.join(',')}[s${i}]`);
-  }
-  const concatInputs = rendered.map((_, i) => `[s${i}]`).join('');
-  parts.push(`${concatInputs}concat=n=${rendered.length}:v=1:a=0[vout]`);
-  return parts.join(';');
-}
-
 function buildAudioFilter(totalDurationSec: number, crossfadeSec: number): string {
   const fadeOutStart = Math.max(0, totalDurationSec - 1.5);
   return [
     `atrim=0:${totalDurationSec.toFixed(3)}`,
     'asetpts=PTS-STARTPTS',
+    'loudnorm=I=-14:LRA=11:TP=-1.5',
     `afade=t=in:st=0:d=${crossfadeSec.toFixed(3)}`,
-    `afade=t=out:st=${fadeOutStart.toFixed(3)}:d=1.500`,
-    'loudnorm=I=-14:LRA=11:TP=-1.5[aout]',
+    `afade=t=out:st=${fadeOutStart.toFixed(3)}:d=1.500[aout]`,
   ].join(',');
 }
 
@@ -79,7 +63,7 @@ function speedRampFilter(seg: CutSegment, baseVf: string): string {
   const rampStart = Math.max(0, dur - 0.8);
   return [
     `${baseVf},split=2[norm][ramp]`,
-    `[ramp]trim=start=${rampStart.toFixed(3)}:end=${dur.toFixed(3)},setpts=PTS-STARTPTS,setpts=1.6*PTS,fps=${30}[ramped]`,
+    `[ramp]trim=start=${rampStart.toFixed(3)}:end=${dur.toFixed(3)},setpts=PTS-STARTPTS,setpts=1.6*PTS,minterpolate=fps=30:mi_mode=mci[ramped]`,
     `[norm]trim=0:${rampStart.toFixed(3)},setpts=PTS-STARTPTS[pre]`,
     '[pre][ramped]concat=n=2:v=1:a=0[ramped_full]',
     '[ramped_full]setpts=PTS-STARTPTS[out]',
@@ -116,10 +100,10 @@ export async function composeReel(
     const args = [
       '-hide_banner',
       '-y',
-      '-i',
-      seg.clipPath,
       '-ss',
       seg.startSec.toFixed(3),
+      '-i',
+      seg.clipPath,
       '-t',
       dur.toFixed(3),
       '-an',
@@ -146,14 +130,7 @@ export async function composeReel(
     rendered.push({ file, durationSec: realDur, transitionIn: seg.transitionIn });
   }
 
-  const useXfade = rendered.length <= 4;
-  const videoFilter = useXfade
-    ? buildXfadeChain(rendered, options.crossfadeSec)
-    : {
-        filter: buildConcatWithFades(rendered, options.crossfadeSec),
-        totalDurationSec: rendered.reduce((a, r) => a + r.durationSec, 0),
-        valid: true,
-      };
+  const videoFilter = buildXfadeChain(rendered, options.crossfadeSec);
   if (!videoFilter.valid) throw new Error('Failed to build video chain');
   const total = videoFilter.totalDurationSec;
 
