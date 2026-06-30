@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.tmp/
+output/
+input/*
+!input/.gitkeep
+assets/music/*
+!assets/music/.gitkeep
+.env
+.env.local
+*.log
+.DS_Store
+.idea/
+.vscode/
+coverage/
